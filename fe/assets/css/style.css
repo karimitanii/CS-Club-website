@@ -476,6 +476,14 @@ section {
 /*--------------------------------------------------------------
 # Resume
 --------------------------------------------------------------*/
+.event-img {
+  transition: transform 0.2s ease;
+}
+
+.event-img:hover {
+  transform: scale(1.15);
+}
+
 .resume .resume-title {
   font-size: 26px;
   font-weight: 700;
