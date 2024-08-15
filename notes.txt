@@ -1,0 +1,28 @@
+fe :
+display current rank then when i press learn more diplay ranking system
+
+learn more ---> ranking system 
+
+
+
+fix padding with event 
+
+drop shawdow for events and merch 
+
+
+pop up centerlized 
+
+
+
+
+leaderboard for ranks for user 
+
+before testimonioals do about us 
+
+fix events 
+
+fix background images for merch 
+
+but rank bar before  how ranking works
+
+profile info + how ranking works do them pop up when button is pressded
