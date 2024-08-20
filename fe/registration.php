@@ -10,7 +10,7 @@
 
   <style>
     .custom-bg {
-      background-color: #53b6e4;
+      background-color: #5087d6;
       /* Change this to your desired color */
     }
   </style>
@@ -40,7 +40,7 @@
                     </div>
                     <div class="row">
                       <div class="col-12">
-                        <form action="#!">
+                        <form action="../be/signup.php" method="POST">
                           <div class="row gy-3">
                             <div class="col-12 col-md-6">
                               <div class="form-floating mb-3">
