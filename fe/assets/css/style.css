@@ -19,6 +19,10 @@
   white-space: nowrap; /* Prevent the text from wrapping to the next line */
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: "Open Sans", sans-serif;
   color: #272829;
