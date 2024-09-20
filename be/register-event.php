@@ -11,8 +11,8 @@ if (isset($_GET['event_id'])) {
     $eventId = intval($_GET['event_id']);
     $userId = $_SESSION['user_id'];
     $userName = $_SESSION['user_name'];
-    $userEmail = $_SESSION['email']; // Assuming email is stored in session
-    $userMobile = $_SESSION['mobile']; // Assuming mobile is stored in session
+    $userEmail = $_SESSION['email'];
+    $userMobile = $_SESSION['mobile_number']; // Ensure this is correctly pulled from session
 
     try {
         $pdo = getConnection();
@@ -37,7 +37,6 @@ if (isset($_GET['event_id'])) {
             }
 
             if ($isAlreadyRegistered) {
-                // User is already registered, redirect with a message
                 header("Location: ../fe/index.php?registration=already_registered#events");
                 exit;
             }
@@ -47,7 +46,7 @@ if (isset($_GET['event_id'])) {
                 'user_id' => $userId,
                 'name' => $userName,
                 'email' => $userEmail,
-                'mobile' => $userMobile
+                'mobile' => $userMobile // This should no longer be null
             ];
 
             // Update the event with the new registered users list

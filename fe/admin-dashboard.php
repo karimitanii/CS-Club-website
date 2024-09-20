@@ -1,6 +1,10 @@
 <?php
 include "../be/session.php";
 include "../be/functions.php";
+
+
+
+ensureLoggedIn();
 $_SESSION['is_admin'] = true;
 
 
@@ -92,6 +96,15 @@ $_SESSION['is_admin'] = true;
           </li>
           <li>
             <a href="#add-merch" class="nav-link scrollto"><i class="bx bx-book-content"></i> <span>Add Merch-Admin</span></a>
+          </li>
+          <li>
+            <a href="#testimonials" class="nav-link scrollto"><i class="bx bx-file-blank"></i> <span> Testimonials</span></a>
+          </li>
+          <li>
+            <a href="#add-testimonial" class="nav-link scrollto"><i class="bx bx-book-content"></i> <span>Add Testimonials-Admin</span></a>
+          </li>
+          <li>
+            <a href="#delete-testimonial" class="nav-link scrollto"><i class="bx bx-file-blank"></i> <span>Delete Testimonials-Admin</span></a>
           </li>
           <li>
             <a href="#messages" class="nav-link scrollto"><i class="bx bx-envelope"></i> <span>View Messages-Admin </span></a>
@@ -441,42 +454,141 @@ $_SESSION['is_admin'] = true;
 
     <!-- end  view users"members"-registred Section -->
 
+
     <!-- ======= Attendance Section ======= -->
     <section id="attendance" class="merch">
       <div class="container">
         <div class="section-title">
           <h2>Attendance</h2>
-          <p>Record member attendance for events by entering their ID and email address. If the details match, the member's event attendance will be incremented by one.</p>
+          <p>Record attendance for members registered in events. Select an event to view the registered members and check the ones who attended.</p>
         </div>
 
         <div class="container">
-          <form action="../be/admin/record-attendance.php" method="POST" class="form">
+          <!-- Event Selection Dropdown -->
+          <form id="eventSelectionForm" class="form">
             <div class="row">
-              <div class="col-md-6">
+              <div class="col-md-12">
                 <div class="form-group">
-                  <label for="member_id">Member ID:</label>
-                  <input type="text" id="member_id" name="member_id" class="form-control" required>
+                  <label for="event_id">Select Event:</label>
+                  <select id="event_id" name="event_id" class="form-control">
+                    <option value="">--Select Event--</option>
+                    <?php
+
+                    try {
+
+                      $pdo = getConnection();
+
+                      $stmt = $pdo->prepare("SELECT id, title FROM events ORDER BY id ASC");
+
+                      $stmt->execute();
+
+                      $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                      foreach ($events as $event) {
+
+                        // Keep the selected event after the page reloads
+
+                        $selected = (isset($_GET['event_id']) && $_GET['event_id'] == $event['id']) ? 'selected' : '';
+
+                        echo "<option value='{$event['id']}' $selected>{$event['title']}</option>";
+                      }
+                    } catch (PDOException $e) {
+
+                      echo '<option value="">Error loading events</option>';
+                    }
+
+                    ?>
+                  </select>
                 </div>
               </div>
-
-              <div class="col-md-6">
-                <div class="form-group">
-                  <label for="email">Member Email:</label>
-                  <input type="email" id="email" name="email" class="form-control" required>
-                </div>
-              </div>
-            </div>
-
-            <br>
-            <br><br>
-            <div class="form-group text-center">
-              <button type="submit" class="btn btn-primary">Record Attendance</button>
             </div>
           </form>
+
+          <!-- Search Bar -->
+          <form id="searchMemberForm" method="GET" action="">
+            <!-- Include the selected event ID as a hidden input -->
+            <input type="hidden" id="selectedEventId" name="event_id" value="<?= isset($_GET['event_id']) ? htmlspecialchars($_GET['event_id']) : '' ?>">
+            <div id="searchMemberContainer" style="display:block;">
+              <br>
+              <div class="form-group">
+                <label for="searchMember">Search Member:</label>
+                <input type="text" id="searchMember" name="searchMember" class="form-control" placeholder="Search by member name" value="<?= isset($_GET['searchMember']) ? htmlspecialchars($_GET['searchMember']) : '' ?>">
+              </div>
+              <br>
+              <div class="form-group text-center">
+                <button type="submit" class="btn btn-secondary">Search</button>
+              </div>
+            </div>
+          </form>
+
+
+          <!-- Display Registered Members -->
+          <div id="registeredMembers">
+            <?php
+            if (isset($_GET['event_id'])) {
+              $eventId = intval($_GET['event_id']);
+              $searchMember = isset($_GET['searchMember']) ? trim(strtolower($_GET['searchMember'])) : '';
+
+              try {
+                $stmt = $pdo->prepare("SELECT users_registered FROM events WHERE id = :event_id");
+                $stmt->bindParam(':event_id', $eventId);
+                $stmt->execute();
+                $event = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($event && !empty($event['users_registered'])) {
+                  $usersRegistered = json_decode($event['users_registered'], true);
+
+                  // If a search term is provided, bring matching members to the top
+                  if (!empty($searchMember)) {
+                    usort($usersRegistered, function ($a, $b) use ($searchMember) {
+                      $nameA = strtolower($a['name']);
+                      $nameB = strtolower($b['name']);
+
+                      if (strpos($nameA, $searchMember) !== false && strpos($nameB, $searchMember) === false) {
+                        return -1; // $a goes before $b
+                      } elseif (strpos($nameA, $searchMember) === false && strpos($nameB, $searchMember) !== false) {
+                        return 1; // $b goes before $a
+                      }
+                      return 0;
+                    });
+                  }
+
+                  // Display members
+                  echo '<form id="attendanceForm" method="POST" action="../be/admin/record-attendance.php">';
+                  echo '<input type="hidden" name="event_id" value="' . $eventId . '">';
+                  foreach ($usersRegistered as $user) {
+                    echo '<div class="card mb-4">';
+                    echo '  <div class="card-header">';
+                    echo '      <h3>' . htmlspecialchars($user['name']) . '</h3>';
+                    echo '  </div>';
+                    echo '  <div class="card-body">';
+                    echo '      <p><strong>Email:</strong> ' . htmlspecialchars($user['email']) . '</p>';
+                    echo '      <p><strong>Mobile:</strong> ' . htmlspecialchars($user['mobile']) . '</p>';
+                    echo '      <p><strong>Attended:</strong> <input type="checkbox" name="attended[]" value="' . htmlspecialchars($user['user_id']) . '"></p>';
+                    echo '  </div>';
+                    echo '</div>';
+                  }
+                  echo '</form>';
+                } else {
+                  echo '<p>No members registered for this event.</p>';
+                }
+              } catch (PDOException $e) {
+                echo '<p>Error retrieving members: ' . $e->getMessage() . '</p>';
+              }
+            }
+            ?>
+          </div>
+
+          <br>
+          <div class="form-group text-center">
+            <button type="submit" form="attendanceForm" class="btn btn-primary" id="recordAttendanceBtn">Record Attendance</button>
+          </div>
+
         </div>
       </div>
     </section>
     <!-- ======= End Attendance Section ======= -->
+
 
     <!-- Attendance Success Modal -->
     <div class="modal fade" id="attendanceSuccessModal" tabindex="-1" aria-labelledby="attendanceSuccessModalLabel" aria-hidden="true">
@@ -487,7 +599,7 @@ $_SESSION['is_admin'] = true;
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            The attendance for the member was successfully recorded.
+            The attendance for the members was successfully recorded.
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
@@ -504,6 +616,53 @@ $_SESSION['is_admin'] = true;
         });
       </script>
     <?php endif; ?>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const eventSelect = document.getElementById('event_id');
+        const hiddenEventIdInput = document.getElementById('selectedEventId');
+
+        // Update the hidden input whenever the event selection changes
+        eventSelect.addEventListener('change', function() {
+          hiddenEventIdInput.value = this.value;
+        });
+
+        // Existing event selection AJAX logic here...
+        eventSelect.addEventListener('change', function() {
+          var eventId = this.value;
+          if (eventId) {
+            fetchRegisteredMembers(eventId);
+          } else {
+            document.getElementById('registeredMembers').innerHTML = '';
+            document.getElementById('recordAttendanceBtn').style.display = 'none';
+            document.getElementById('searchMemberContainer').style.display = 'none';
+          }
+        });
+
+        function fetchRegisteredMembers(eventId) {
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', '../be/admin/get-registered-members.php?event_id=' + eventId, true);
+          xhr.onload = function() {
+            if (xhr.status === 200) {
+              var response = xhr.responseText;
+              document.getElementById('registeredMembers').innerHTML = response;
+              document.getElementById('recordAttendanceBtn').style.display = 'block';
+              document.getElementById('searchMemberContainer').style.display = 'block';
+            } else {
+              console.error('Error fetching members');
+            }
+          };
+          xhr.send();
+        }
+      });
+    </script>
+
+
+
+
+
+
+
 
 
     <!-- ======= merch Section ======= -->
@@ -706,9 +865,235 @@ $_SESSION['is_admin'] = true;
       </script>
     <?php endif; ?>
 
+    <!-- ======= Testimonials Section ======= -->
+    <section id="testimonials" class="testimonials">
+      <div class="container">
+        <div class="section-title">
+          <h2>Testimonials</h2>
+          <p>
+            What Our Members Say At the LAU Computer Science Club, our members
+            are our greatest asset. Discover firsthand accounts of how being
+            part of our club has impacted their academic and professional
+            journeys. From hands-on projects and collaborative learning to
+            networking opportunities and career guidance, our members share
+            their experiences and achievements. Read their stories to
+            understand how our community fosters growth, innovation, and
+            success in the field of computer science.
+          </p>
+        </div>
+
+        <div class="testimonials-slider swiper" data-aos="fade-up" data-aos-delay="100">
+          <div class="swiper-wrapper">
+            <?php
+            try {
+              $pdo = getConnection();
+              $stmt = $pdo->prepare("SELECT * FROM testimonials ORDER BY id ASC");
+              $stmt->execute();
+              $testimonials = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+              if ($testimonials) {
+                foreach ($testimonials as $testimonial) {
+                  echo '<div class="swiper-slide">';
+                  echo '  <div class="testimonial-item" data-aos="fade-up">';
+                  echo '    <p>';
+                  echo '      <i class="bx bxs-quote-alt-left quote-icon-left"></i>';
+                  echo        htmlspecialchars($testimonial['test']);
+                  echo '      <i class="bx bxs-quote-alt-right quote-icon-right"></i>';
+                  echo '    </p>';
+                  echo '    <img src="' . htmlspecialchars($testimonial['image']) . '" class="testimonial-img" alt="' . htmlspecialchars($testimonial['name']) . '" />';
+                  echo '    <h3>' . htmlspecialchars($testimonial['name']) . '</h3>';
+                  echo '    <h4>' . htmlspecialchars($testimonial['position']) . '</h4>';
+                  echo '  </div>';
+                  echo '</div>';
+                }
+              } else {
+                echo '<p>No testimonials found.</p>';
+              }
+            } catch (PDOException $e) {
+              echo '<p>Error retrieving testimonials: ' . $e->getMessage() . '</p>';
+            }
+            ?>
+
+          </div>
+          <div class="swiper-pagination"></div>
+        </div>
+      </div>
+    </section>
+    <!-- End Testimonials Section -->
+
+    <!-- Add Testimonial Section -->
+    <section id="add-testimonial" class="testimonial section-bg">
+      <div class="container">
+        <div class="section-title">
+          <h2>Add New Testimonial</h2>
+          <p>As an admin, you can add new testimonials for the LAU Computer Science Club. Fill out the form below to add a testimonial.</p>
+        </div>
+
+        <form action="../be/admin/add-testimonial.php" method="POST" class="form" enctype="multipart/form-data">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" class="form-control" required>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="position">Position:</label>
+                <input type="text" id="position" name="position" class="form-control" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="image">Image File Location:</label>
+            <input type="text" id="image" name="image" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="testimonial">Testimonial:</label>
+            <textarea id="testimonial" name="testimonial" class="form-control" rows="5" required></textarea>
+          </div>
+          <br><br>
+          <div class="form-group text-center">
+            <button type="submit" class="btn btn-primary">Add Testimonial</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="testimonialSuccessModal" tabindex="-1" aria-labelledby="testimonialSuccessModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="testimonialSuccessModalLabel">Testimonial Added</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            The testimonial was added successfully.
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <?php if (isset($_GET['testimonial']) && $_GET['testimonial'] === 'added') : ?>
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          // Scroll to the add-testimonial section
+          document.getElementById('add-testimonial').scrollIntoView({
+            behavior: 'smooth'
+          });
+
+          // Show the modal after scrolling
+          var testimonialSuccessModal = new bootstrap.Modal(document.getElementById('testimonialSuccessModal'));
+          setTimeout(function() {
+            testimonialSuccessModal.show();
+          }, 500); // Add a slight delay to ensure the scroll is completed before showing the modal
+        });
+      </script>
+    <?php endif; ?>
+
+    <!-- end Add Testimonial Section -->
+
+
+    <!-- delete Testimonial Section -->
+    <section id="delete-testimonial" class="testimonials">
+      <div class="container">
+        <div class="section-title">
+          <h2>Manage Testimonials</h2>
+          <p>
+            Here you can view and delete testimonials from the database. Each testimonial is displayed with a delete button that allows you to remove it.
+          </p>
+        </div>
+
+        <div class="container">
+          <?php
+          try {
+            $pdo = getConnection();
+            $stmt = $pdo->prepare("SELECT * FROM testimonials ORDER BY id ASC");
+            $stmt->execute();
+            $testimonials = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if ($testimonials) {
+              foreach ($testimonials as $testimonial) {
+                echo '<div class="card mb-4">';
+                echo '  <div class="card-header">';
+                echo '      <h3>' . htmlspecialchars($testimonial['name']) . '</h3>';
+                echo '  </div>';
+                echo '  <div class="card-body">';
+                echo '      <p>' . htmlspecialchars($testimonial['test']) . '</p>';
+                echo '      <p>From: ' . htmlspecialchars($testimonial['name']) . ' (' . htmlspecialchars($testimonial['position']) . ')</p>';
+                echo '      <p><img src="' . htmlspecialchars($testimonial['image']) . '" class="testimonial-img" alt="' . htmlspecialchars($testimonial['name']) . '" /></p>';
+                echo '  </div>';
+                echo '  <div class="card-footer text-end">';
+                echo '      <a href="../be/admin/delete-testimonial.php?id=' . intval($testimonial['id']) . '" class="btn btn-danger">Delete</a>';
+                echo '  </div>';
+                echo '</div>';
+              }
+            } else {
+              echo '<p>No testimonials found.</p>';
+            }
+          } catch (PDOException $e) {
+            echo '<p>Error retrieving testimonials: ' . $e->getMessage() . '</p>';
+          }
+          ?>
+        </div>
+      </div>
+    </section>
+
+
+    <?php if (isset($_GET['testimonial']) || isset($_GET['error'])) : ?>
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          var message = '';
+          var modalTitle = 'Manage Testimonials';
+
+          <?php if ($_GET['testimonial'] === 'deleted') : ?>
+            message = 'The testimonial was deleted successfully!';
+          <?php elseif ($_GET['error'] === 'db_error') : ?>
+            message = 'There was an error deleting the testimonial. Please try again later.';
+          <?php else : ?>
+            message = 'An unexpected error occurred. Please try again.';
+          <?php endif; ?>
+
+          var modalContent = `
+            <div class="modal fade" id="testimonialModal" tabindex="-1" aria-labelledby="testimonialModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="testimonialModalLabel">` + modalTitle + `</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">` + message + `</div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+          document.body.insertAdjacentHTML('beforeend', modalContent);
+
+          var testimonialModal = new bootstrap.Modal(document.getElementById('testimonialModal'));
+          testimonialModal.show();
+        });
+      </script>
+    <?php endif; ?>
+
+
+
+
+    <!-- end delete Testimonial Section -->
+
 
     <!-- ======= Messages Section ======= -->
-    <section id="messages" class="contact">
+    <section id="messages" class="contact section-bg">
       <div class="container">
         <div class="section-title">
           <h2>Messages</h2>
@@ -721,7 +1106,8 @@ $_SESSION['is_admin'] = true;
           <?php
           try {
             $pdo = getConnection();
-            $stmt = $pdo->prepare("SELECT * FROM contactus ORDER BY id ASC");
+            // Fetch only unread messages
+            $stmt = $pdo->prepare("SELECT * FROM contactus WHERE markasread = 0 ORDER BY id ASC");
             $stmt->execute();
             $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -736,11 +1122,15 @@ $_SESSION['is_admin'] = true;
                 echo '      <p><strong>From:</strong> ' . htmlspecialchars($message['name']) . ' (' . htmlspecialchars($message['email']) . ')</p>';
                 echo '      <p><strong>Message:</strong></p>';
                 echo '      <p>' . nl2br(htmlspecialchars($message['message'])) . '</p>';
+                echo '      <form method="POST" action="../be/admin/mark-message-read.php" class="text-end">';
+                echo '          <input type="hidden" name="message_id" value="' . htmlspecialchars($message['id']) . '">';
+                echo '          <button type="submit" class="btn btn-primary">Mark as Read</button>';
+                echo '      </form>';
                 echo '  </div>';
                 echo '</div>';
               }
             } else {
-              echo '<p>No messages found.</p>';
+              echo '<p>No unread messages found.</p>';
             }
           } catch (PDOException $e) {
             echo '<p>Error retrieving messages: ' . $e->getMessage() . '</p>';
@@ -750,6 +1140,35 @@ $_SESSION['is_admin'] = true;
       </div>
     </section>
     <!-- End Messages Section -->
+
+    <!-- Mark as Read Success Modal -->
+    <div class="modal fade" id="markReadSuccessModal" tabindex="-1" aria-labelledby="markReadSuccessModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="markReadSuccessModalLabel">Success</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            The message was marked as read successfully.
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <?php if (isset($_GET['messages']) && $_GET['messages'] === 'updated') : ?>
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          var markReadSuccessModal = new bootstrap.Modal(document.getElementById('markReadSuccessModal'));
+          markReadSuccessModal.show();
+        });
+      </script>
+    <?php endif; ?>
+
+
 
     <!-- End #main -->
 
@@ -764,7 +1183,6 @@ $_SESSION['is_admin'] = true;
     <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
     <script src="assets/vendor/typed.js/typed.min.js"></script>
     <script src="assets/vendor/waypoints/noframework.waypoints.js"></script>
-    <script src="assets/vendor/php-email-form/validate.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 

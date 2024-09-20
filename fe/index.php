@@ -21,6 +21,14 @@ $profession = $userData['profession'];
 $eventsAttended = $userData['events_attended'];
 
 
+$_SESSION['user_name'] = $userData['name'];
+$_SESSION['email'] = $userData['email'];
+$_SESSION['mobile_number'] = $userData['mobile_number']; // Store mobile number in session
+$_SESSION['dob'] = $userData['dob'];
+$_SESSION['nationality'] = $userData['nationality'];
+$_SESSION['profession'] = $userData['profession'];
+$_SESSION['events_attended'] = $userData['events_attended'];
+
 ?>
 
 <!DOCTYPE html>
@@ -789,90 +797,43 @@ $eventsAttended = $userData['events_attended'];
 
         <div class="testimonials-slider swiper" data-aos="fade-up" data-aos-delay="100">
           <div class="swiper-wrapper">
-            <div class="swiper-slide">
-              <div class="testimonial-item" data-aos="fade-up">
-                <p>
-                  <i class="bx bxs-quote-alt-left quote-icon-left"></i>
-                  Founding the LAU Computer Science Club has been one of the
-                  most fulfilling experiences of my academic journey. Seeing
-                  our members grow, collaborate, and achieve their goals has
-                  been incredibly rewarding. Our club’s mission is to create a
-                  vibrant community where students can explore their passion
-                  for technology, develop their skills, and build meaningful
-                  connections. I am proud of what we’ve accomplished and
-                  excited for the future of our club. Together, we are shaping
-                  the next generation of innovators and leaders in computer
-                  science.
-                  <i class="bx bxs-quote-alt-right quote-icon-right"></i>
-                </p>
-                <img src="assets/img/testimonials/testimonials-1.jpg" class="testimonial-img" alt="" />
-                <h3>Karim Itani</h3>
-                <h4>Founder of the LAU Computer Science Club</h4>
-              </div>
-            </div>
-            <!-- End testimonial item -->
+            <?php
+            try {
+              $pdo = getConnection();
+              $stmt = $pdo->prepare("SELECT * FROM testimonials ORDER BY id ASC");
+              $stmt->execute();
+              $testimonials = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            <div class="swiper-slide">
-              <div class="testimonial-item" data-aos="fade-up" data-aos-delay="100">
-                <p>
-                  <i class="bx bxs-quote-alt-left quote-icon-left"></i>
-                  The LAU Computer Science Club has provided an incredible
-                  platform to connect with like-minded individuals and work on
-                  exciting tech projects. The supportive community and the
-                  opportunities to participate in hackathons and coding
-                  challenges have greatly enriched my learning experience and
-                  boosted my confidence in my abilities.
-                  <i class="bx bxs-quote-alt-right quote-icon-right"></i>
-                </p>
-                <img src="assets/img/testimonials/testimonials-2.jpg" class="testimonial-img" alt="" />
-                <h3>Sara Wilsson</h3>
-                <h4>LAU Gradute Junior Developer</h4>
-              </div>
-            </div>
-            <!-- End testimonial item -->
+              if ($testimonials) {
+                foreach ($testimonials as $testimonial) {
+                  echo '<div class="swiper-slide">';
+                  echo '  <div class="testimonial-item" data-aos="fade-up">';
+                  echo '    <p>';
+                  echo '      <i class="bx bxs-quote-alt-left quote-icon-left"></i>';
+                  echo        htmlspecialchars($testimonial['test']);
+                  echo '      <i class="bx bxs-quote-alt-right quote-icon-right"></i>';
+                  echo '    </p>';
+                  echo '    <img src="' . htmlspecialchars($testimonial['image']) . '" class="testimonial-img" alt="' . htmlspecialchars($testimonial['name']) . '" />';
+                  echo '    <h3>' . htmlspecialchars($testimonial['name']) . '</h3>';
+                  echo '    <h4>' . htmlspecialchars($testimonial['position']) . '</h4>';
+                  echo '  </div>';
+                  echo '</div>';
+                }
+              } else {
+                echo '<p>No testimonials found.</p>';
+              }
+            } catch (PDOException $e) {
+              echo '<p>Error retrieving testimonials: ' . $e->getMessage() . '</p>';
+            }
+            ?>
 
-            <div class="swiper-slide">
-              <div class="testimonial-item" data-aos="fade-up" data-aos-delay="200">
-                <p>
-                  <i class="bx bxs-quote-alt-left quote-icon-left"></i>
-                  Being a part of the LAU Computer Science Club has been a
-                  game-changer for me. The hands-on projects and collaborative
-                  environment have significantly enhanced my programming
-                  skills. The club's workshops and guest lectures have also
-                  provided valuable insights into the industry, helping me
-                  make informed career choices.
-                  <i class="bx bxs-quote-alt-right quote-icon-right"></i>
-                </p>
-                <img src="assets/img/testimonials/testimonials-3.jpg" class="testimonial-img" alt="" />
-                <h3>Malak</h3>
-                <h4>Computer Science Students at LAU</h4>
-              </div>
-            </div>
-            <!-- End testimonial item -->
-
-            <div class="swiper-slide">
-              <div class="testimonial-item" data-aos="fade-up" data-aos-delay="300">
-                <p>
-                  <i class="bx bxs-quote-alt-left quote-icon-left"></i>
-                  The LAU Computer Science Club is a fantastic community where
-                  you can thrive both academically and professionally. The
-                  diverse range of activities and the encouragement from
-                  fellow members have helped me grow as a developer and have
-                  made my time at LAU incredibly rewarding.
-                  <i class="bx bxs-quote-alt-right quote-icon-right"></i>
-                </p>
-                <img src="assets/img/testimonials/testimonials-4.jpg" class="testimonial-img" alt="" />
-                <h3>David</h3>
-                <h4>LAU Gradute, Software Engineer</h4>
-              </div>
-            </div>
-            <!-- End testimonial item -->
           </div>
           <div class="swiper-pagination"></div>
         </div>
       </div>
     </section>
     <!-- End Testimonials Section -->
+
 
     <!-- ======= Contact Section ======= -->
     <section id="contact" class="contact">

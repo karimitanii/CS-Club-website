@@ -21,10 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         $pdo = getConnection();
-        $stmt = $pdo->prepare("INSERT INTO events (image, title, description, users_registered) VALUES (:image, :title, :description, 0)");
+        $stmt = $pdo->prepare("INSERT INTO events (image, title, description, users_registered) VALUES (:image, :title, :description, :users_registered)");
         $stmt->bindParam(':image', $image);
         $stmt->bindParam(':title', $title);
         $stmt->bindParam(':description', $description);
+
+        // Insert an empty JSON array as the default value for users_registered
+        $emptyJsonArray = json_encode([]);
+        $stmt->bindParam(':users_registered', $emptyJsonArray);
+
         $stmt->execute();
 
         header("Location: ../../fe/admin-dashboard.php?event=added"); // Adjusted path to admin-dashboard.php
@@ -37,4 +42,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: ../fe/admin-dashboard.php"); // Adjusted path to admin-dashboard.php
     exit;
 }
-?>
